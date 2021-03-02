@@ -57,7 +57,7 @@ prob += lpSum([costs[i] * ingredient_vars[i] for i in Ingredients])
 ## constraints, nutritional requirements
 prob += lpSum([total_kcals[i] for i in Ingredients]) >= 400 # total kcal
 prob += lpSum([total_kcals[i] for i in Ingredients]) <= 600 # total kcal
-prob += (lpSum([fat_kcals[i] for i in Ingredients]) / lpSum([total_kcals[i] for i in Ingredients])) <= 0.3 # proportion of fat kcal
+prob += lpSum([fat_kcals[i] * ingredient_vars[i] for i in Ingredients]) <= 0.3 * lpSum([total_kcals[i] * ingredient_vars[i] for i in Ingredients]) # proportion of fat kcal
 prob += lpSum([vit_C[i] * ingredient_vars[i] for i in Ingredients]) >= 60 # at least 60 mg vitamin C
 prob += lpSum([protein[i] * ingredient_vars[i] for i in Ingredients]) >= 12 # at least 12 g protein
 prob += ingredient_vars["BREAD"] == 2 # 2 slices of bread
