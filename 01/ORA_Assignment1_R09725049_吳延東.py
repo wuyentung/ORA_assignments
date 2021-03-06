@@ -49,19 +49,19 @@ protein = { # g
 prob = LpProblem("lunch cost down", LpMinimize)
 #%%
 ## decision vars
-ingredient_vars = LpVariable.dicts(name="Ingredient", indexs=Ingredients, lowBound=0, cat="Integer")
+ingredient_vars = LpVariable.dicts(name="Ingredient", indexs=Ingredients, lowBound=0, upBound=None)
 #%%
 ## objective function
 prob += lpSum([costs[i] * ingredient_vars[i] for i in Ingredients])
 #%%
 ## constraints, nutritional requirements
-prob += lpSum([total_kcals[i] for i in Ingredients]) >= 400 # total kcal
-prob += lpSum([total_kcals[i] for i in Ingredients]) <= 600 # total kcal
+prob += lpSum([total_kcals[i] * ingredient_vars[i] for i in Ingredients]) >= 400 # total kcal
+prob += lpSum([total_kcals[i] * ingredient_vars[i] for i in Ingredients]) <= 600 # total kcal
 prob += lpSum([fat_kcals[i] * ingredient_vars[i] for i in Ingredients]) <= 0.3 * lpSum([total_kcals[i] * ingredient_vars[i] for i in Ingredients]) # proportion of fat kcal
 prob += lpSum([vit_C[i] * ingredient_vars[i] for i in Ingredients]) >= 60 # at least 60 mg vitamin C
 prob += lpSum([protein[i] * ingredient_vars[i] for i in Ingredients]) >= 12 # at least 12 g protein
 prob += ingredient_vars["BREAD"] == 2 # 2 slices of bread
-prob += ingredient_vars["PEANUT BUTTER"] >= 2 * ingredient_vars["JELLY"] # peanut butter is two times of jelly
+prob += ingredient_vars["PEANUT BUTTER"] >= 2 * ingredient_vars["JELLY"]  # peanut butter is two times of jelly
 prob += ingredient_vars["MILK"] + ingredient_vars["JUICE"] >= 1 # at least one cup of liquid
 #%%
 ## solve
