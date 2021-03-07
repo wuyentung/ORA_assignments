@@ -77,4 +77,35 @@ print('obj=',value(prob.objective))
 #解的另一種方式
 # for i in Ingredients:
 #   print(ingredient_vars[i],"=",ingredient_vars[i].value())
+#%%
+import numpy as np
+#%%
+p = np.array([[0.8, 0.2, 0, 0], [0, 0, 0.2, 0.8], [0, 1, 0, 0], [0.8, 0.2, 0, 0]])
+print(p)
+# %%
+p2 = np.dot(p, p)
+print(p2)
+print(p2[0][2])
+# %%
+p4 = np.dot(p2, p2)
+p5 = np.dot(p4, p)
+print(p5)
+print(p5[0][2])
+# %%
+p10 = np.dot(p5, p5)
+print(p10)
+print(p10[0][2])
+# %%
+p20 = np.dot(p10, p10)
+print(p20)
+print(p20[0][2])
+# %%
+p40 = np.dot(p20, p20)
+print(p40)
+print(p40[0][2])
+# %%
+inoperable_cost = 30000
+p_inoperable = p40[0][2] 
+expected_cost = p_inoperable * inoperable_cost + (1 - p_inoperable) * 0
+print(expected_cost)
 # %%
