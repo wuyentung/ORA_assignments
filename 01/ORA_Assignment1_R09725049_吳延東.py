@@ -11,7 +11,6 @@ costs = { # cents
     Ingredients[3]: 8, 
     Ingredients[4]: 15, 
     Ingredients[5]: 35}
-
 fat_kcals = { # kcal
     Ingredients[0]: 10, 
     Ingredients[1]: 75, 
