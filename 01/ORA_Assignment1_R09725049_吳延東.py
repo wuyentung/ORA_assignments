@@ -48,7 +48,7 @@ protein = { # g
 prob = LpProblem("lunch cost down", LpMinimize)
 #%%
 ## decision vars
-ingredient_vars = LpVariable.dicts(name="Ingredient", indexs=Ingredients, lowBound=0, upBound=None)
+ingredient_vars = LpVariable.dicts(name="Ingredient", indexs=Ingredients, lowBound=0, upBound=None, cat="Integer")
 #%%
 ## objective function
 prob += lpSum([costs[i] * ingredient_vars[i] for i in Ingredients])
