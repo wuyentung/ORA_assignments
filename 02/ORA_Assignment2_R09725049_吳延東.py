@@ -65,7 +65,7 @@ prob_a = LpProblem("max profit", LpMaximize)
 
 ## add variables
 land_vars = LpVariable.dicts(name="Land", indexs=Products, lowBound=0, upBound=None, cat="continuous")
-profits = LpVariable.dicts(name="profit", indexs=Products, lowBound=0, upBound=None, cat="continuous")
+profits = LpVariable.dicts(name="profit", indexs=Products, lowBound=None, upBound=None, cat="continuous")
 
 ## objective function
 prob_a += lpSum(
@@ -76,23 +76,22 @@ prob_a += lpSum(
 ## constraints
 prob_a += 500 >= lpSum(land_vars[i] for i in Products) # total land limit
 
-prob_a += profits["Wheat"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] for i in ["Wheat"]] # pay price when yield below demand (piecewise)
-prob_a += profits["Wheat"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] for i in ["Wheat"]] # get profit when yield above demand (piecewise)
+prob_a += profits["Wheat"] <= [-np.abs(Price_below[i]) * Demands[i] + np.abs(Price_below[i]) * land_vars[i] * Avg_yield[i] for i in ["Wheat"]] # pay price when yield below demand (piecewise)
+prob_a += profits["Wheat"] <= [-np.abs(Price_above[i]) * Demands[i] + np.abs(Price_above[i]) * land_vars[i] * Avg_yield[i] for i in ["Wheat"]] # get profit when yield above demand (piecewise)
 
-prob_a += profits["Corn"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] for i in ["Corn"]] # pay price when yield below demand (piecewise)
-prob_a += profits["Corn"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] for i in ["Corn"]] # get profit when yield above demand (piecewise)
+prob_a += profits["Corn"] <= [-np.abs(Price_below[i]) * Demands[i] + np.abs(Price_below[i]) * land_vars[i] * Avg_yield[i] for i in ["Corn"]] # pay price when yield below demand (piecewise)
+prob_a += profits["Corn"] <= [-np.abs(Price_above[i]) * Demands[i] + np.abs(Price_above[i]) * land_vars[i] * Avg_yield[i] for i in ["Corn"]] # get profit when yield above demand (piecewise)
 
 prob_a += profits["Sugar"] <= [Price_below[i] * land_vars[i] * Avg_yield[i] for i in ["Sugar"]] # get higher profit ratio when yield below demand (piecewise)
-prob_a += profits["Sugar"] <= [(Price_below[i] - Price_above[i]) * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] for i in ["Sugar"]] # get lower profit ratio when yield above demand (piecewise)
+prob_a += profits["Sugar"] <= [np.abs(Price_below[i] - Price_above[i]) * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] for i in ["Sugar"]] # get lower profit ratio when yield above demand (piecewise)
 
-#%%
 ## solve
 solve_prob(prob_a)
 
 # https://docs.mosek.com/modeling-cookbook/mio.html
 # http://civil.colorado.edu/~balajir/CVEN5393/lectures/chapter-08.pdf
-
 #%%
+'''
 # RM
 ## expected value for each senario when yields is high, avg, or low
 senario_high = LpProblem("high", LpMaximize)
@@ -160,49 +159,33 @@ print("Status:", LpStatus[stage1.status])
 for v in stage1.variables():
     print(v.name, "=", v.varValue)
 print('obj=',value(stage1.objective))
+'''
 #%%
 ## model
 all_stages = LpProblem("all stage merge", LpMaximize)
 ## vars
 lands = LpVariable.dicts(name="lands for", indexs=Products, lowBound=0, upBound=None, cat="continuous")
-high_profits = LpVariable.dicts(name="profit when high yield", indexs=Products, lowBound=0, upBound=None, cat="continuous")
-avg_profits = LpVariable.dicts(name="profit when avg yield", indexs=Products, lowBound=0, upBound=None, cat="continuous")
-low_profits = LpVariable.dicts(name="profit when low yield", indexs=Products, lowBound=0, upBound=None, cat="continuous")
+profits = {}
+for s in Senario:
+    profits[s] = LpVariable.dicts(name="profit when %s yield" %s, indexs=Products, lowBound=None, upBound=None, cat="continuous")
+
 ## obj
-all_stages += lpSum([-Costs[i] * stage1_land[i] for i in Products]) + 1/3 * lpSum([high_profits[i] for i in Products]) + 1/3 * lpSum([avg_profits[i] for i in Products]) + 1/3 * lpSum([low_profits[i] for i in Products])
+all_stages += lpSum([-Costs[i] * lands[i] for i in Products]) + 1/3 * lpSum([profits[s][i] for s in Senario for i in Products])
+
 ## st
 ### land
-all_stages += 500 <= lpSum([lands[i] for i in Products])
+all_stages += 500 >= lpSum([lands[i] for i in Products])
 
-### high
-all_stages +=  high_profits["Wheat"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["high"] for i in ["Wheat"]] # pay price when yield below demand (piecewise)
-all_stages += high_profits["Wheat"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["high"] for i in ["Wheat"]] # get profit when yield above demand (piecewise)
+### 
+for s in Senario:
+    all_stages += profits[s]["Wheat"] <= [-np.abs(Price_below[i]) * Demands[i] + np.abs(Price_below[i]) * lands[i] * Avg_yield[i] * Senario[s] for i in ["Wheat"]] # pay price when yield below demand (piecewise)
+    all_stages += profits[s]["Wheat"] <= [-np.abs(Price_above[i]) * Demands[i] + np.abs(Price_above[i]) * lands[i] * Avg_yield[i] * Senario[s] for i in ["Wheat"]] # get profit when yield above demand (piecewise)
 
-all_stages += high_profits["Corn"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["high"] for i in ["Corn"]] # pay price when yield below demand (piecewise)
-all_stages += high_profits["Corn"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["high"] for i in ["Corn"]] # get profit when yield above demand (piecewise)
+    all_stages += profits[s]["Corn"] <= [-np.abs(Price_below[i]) * Demands[i] + np.abs(Price_below[i]) * lands[i] * Avg_yield[i] * Senario[s] for i in ["Corn"]] # pay price when yield below demand (piecewise)
+    all_stages += profits[s]["Corn"] <= [-np.abs(Price_above[i]) * Demands[i] + np.abs(Price_above[i]) * lands[i] * Avg_yield[i] * Senario[s] for i in ["Corn"]] # get profit when yield above demand (piecewise)
 
-all_stages += high_profits["Sugar"] <= [Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["high"] for i in ["Sugar"]] # get higher profit ratio when yield below demand (piecewise)
-all_stages += high_profits["Sugar"] <= [(Price_below[i] - Price_above[i]) * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["high"] for i in ["Sugar"]] # get lower profit ratio when yield above demand (piecewise)
+    all_stages += profits[s]["Sugar"] <= [Price_below[i] * lands[i] * Avg_yield[i] * Senario[s] for i in ["Sugar"]] # get higher profit ratio when yield below demand (piecewise)
+    all_stages += profits[s]["Sugar"] <= [np.abs(Price_below[i] - Price_above[i]) * Demands[i] + Price_above[i] * lands[i] * Avg_yield[i] * Senario[s] for i in ["Sugar"]] # get lower profit ratio when yield above demand (piecewise)
 
-### low
-all_stages += low_profits["Wheat"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["low"] for i in ["Wheat"]] # pay price when yield below demand (piecewise)
-all_stages += low_profits["Wheat"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["low"] for i in ["Wheat"]] # get profit when yield above demand (piecewise)
-
-all_stages += low_profits["Corn"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["low"] for i in ["Corn"]] # pay price when yield below demand (piecewise)
-all_stages += low_profits["Corn"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["low"] for i in ["Corn"]] # get profit when yield above demand (piecewise)
-
-all_stages += low_profits["Sugar"] <= [Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["low"] for i in ["Sugar"]] # get higher profit ratio when yield below demand (piecewise)
-all_stages += low_profits["Sugar"] <= [(Price_below[i] - Price_above[i]) * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["low"] for i in ["Sugar"]] # get lower profit ratio when yield above demand (piecewise)
-
-### avg
-all_stages += avg_profits["Wheat"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["avg"] for i in ["Wheat"]] # pay price when yield below demand (piecewise)
-all_stages += avg_profits["Wheat"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["avg"] for i in ["Wheat"]] # get profit when yield above demand (piecewise)
-
-all_stages += avg_profits["Corn"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["avg"] for i in ["Corn"]] # pay price when yield below demand (piecewise)
-all_stages += avg_profits["Corn"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["avg"] for i in ["Corn"]] # get profit when yield above demand (piecewise)
-
-all_stages += avg_profits["Sugar"] <= [Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["avg"] for i in ["Sugar"]] # get higher profit ratio when yield below demand (piecewise)
-all_stages += avg_profits["Sugar"] <= [(Price_below[i] - Price_above[i]) * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["avg"] for i in ["Sugar"]] # get lower profit ratio when yield above demand (piecewise)
-#%%
 solve_prob(all_stages)
 #%%
