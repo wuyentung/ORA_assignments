@@ -61,7 +61,7 @@ M = 1000000
 
 #%%
 ## model
-prob_a = LpProblem("max profit", LpMaximize)
+prob_a = LpProblem("problem_1a", LpMaximize)
 
 ## add variables
 land_vars = LpVariable.dicts(name="Land", indexs=Products, lowBound=0, upBound=None, cat="continuous")
@@ -91,83 +91,14 @@ solve_prob(prob_a)
 # https://docs.mosek.com/modeling-cookbook/mio.html
 # http://civil.colorado.edu/~balajir/CVEN5393/lectures/chapter-08.pdf
 #%%
-'''
-# RM
-## expected value for each senario when yields is high, avg, or low
-senario_high = LpProblem("high", LpMaximize)
-high_profits = LpVariable.dicts(name="profit when high yield", indexs=Products, lowBound=0, upBound=None, cat="continuous")
-## objective funciton
-senario_high += lpSum([high_profits[i] for i in Products])
-## constraints
-senario_high += high_profits["Wheat"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["high"] for i in ["Wheat"]] # pay price when yield below demand (piecewise)
-senario_high += high_profits["Wheat"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["high"] for i in ["Wheat"]] # get profit when yield above demand (piecewise)
-
-senario_high += high_profits["Corn"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["high"] for i in ["Corn"]] # pay price when yield below demand (piecewise)
-senario_high += high_profits["Corn"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["high"] for i in ["Corn"]] # get profit when yield above demand (piecewise)
-
-senario_high += high_profits["Sugar"] <= [Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["high"] for i in ["Sugar"]] # get higher profit ratio when yield below demand (piecewise)
-senario_high += high_profits["Sugar"] <= [(Price_below[i] - Price_above[i]) * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["high"] for i in ["Sugar"]] # get lower profit ratio when yield above demand (piecewise)
-
-senario_low = LpProblem("low", LpMaximize)
-low_profits = LpVariable.dicts(name="profit when high yield", indexs=Products, lowBound=0, upBound=None, cat="continuous")
-## objective funciton
-senario_low += lpSum([low_profits[i] for i in Products])
-## constraints
-senario_low += low_profits["Wheat"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["low"] for i in ["Wheat"]] # pay price when yield below demand (piecewise)
-senario_low += low_profits["Wheat"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["low"] for i in ["Wheat"]] # get profit when yield above demand (piecewise)
-
-senario_low += low_profits["Corn"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["low"] for i in ["Corn"]] # pay price when yield below demand (piecewise)
-senario_low += low_profits["Corn"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["low"] for i in ["Corn"]] # get profit when yield above demand (piecewise)
-
-senario_low += low_profits["Sugar"] <= [Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["low"] for i in ["Sugar"]] # get higher profit ratio when yield below demand (piecewise)
-senario_low += low_profits["Sugar"] <= [(Price_below[i] - Price_above[i]) * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["low"] for i in ["Sugar"]] # get lower profit ratio when yield above demand (piecewise)
-
-senario_avg = LpProblem("avg", LpMaximize)
-avg_profits = LpVariable.dicts(name="profit when high yield", indexs=Products, lowBound=0, upBound=None, cat="continuous")
-## objective funciton
-senario_avg += lpSum([avg_profits[i] for i in Products])
-## constraints
-senario_avg += avg_profits["Wheat"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["avg"] for i in ["Wheat"]] # pay price when yield below demand (piecewise)
-senario_avg += avg_profits["Wheat"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["avg"] for i in ["Wheat"]] # get profit when yield above demand (piecewise)
-
-senario_avg += avg_profits["Corn"] >= [Price_below[i] * Demands[i] + Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["avg"] for i in ["Corn"]] # pay price when yield below demand (piecewise)
-senario_avg += avg_profits["Corn"] <= [-Price_above[i] * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["avg"] for i in ["Corn"]] # get profit when yield above demand (piecewise)
-
-senario_avg += avg_profits["Sugar"] <= [Price_below[i] * land_vars[i] * Avg_yield[i] * Senario["avg"] for i in ["Sugar"]] # get higher profit ratio when yield below demand (piecewise)
-senario_avg += avg_profits["Sugar"] <= [(Price_below[i] - Price_above[i]) * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] * Senario["avg"] for i in ["Sugar"]] # get lower profit ratio when yield above demand (piecewise)
 #%%
 ## model
-stage1 = LpProblem("stage1", LpMaximize)
-## variables
-stage1_land = LpVariable.dicts(name="Land", indexs=Products, lowBound=0, upBound=None, cat="continuous")
-## obj
-stage1 += lpSum(
-    [-Costs[i] * stage1_land[i] for i in Products] + 
-    [np.average([value(senario_high.objective), value(senario_avg.objective), value(senario_low.objective)])]
-    )
-## constraints
-stage1 += lpSum([stage1_land[i] for i in Products]) <= 500
-## solve
-
-
-stage1.solve()
-#%%
-#查看目前解的狀態
-print("Status:", LpStatus[stage1.status])
-
-#印出解及目標值
-for v in stage1.variables():
-    print(v.name, "=", v.varValue)
-print('obj=',value(stage1.objective))
-'''
-#%%
-## model
-all_stages = LpProblem("all stage merge", LpMaximize)
+all_stages = LpProblem("problem_1c", LpMaximize)
 ## vars
-lands = LpVariable.dicts(name="lands for", indexs=Products, lowBound=0, upBound=None, cat="continuous")
+lands = LpVariable.dicts(name="lands_for", indexs=Products, lowBound=0, upBound=None, cat="continuous")
 profits = {}
 for s in Senario:
-    profits[s] = LpVariable.dicts(name="profit when %s yield" %s, indexs=Products, lowBound=None, upBound=None, cat="continuous")
+    profits[s] = LpVariable.dicts(name="profit_when_%s_yield" %s, indexs=Products, lowBound=None, upBound=None, cat="continuous")
 
 ## obj
 all_stages += lpSum([-Costs[i] * lands[i] for i in Products]) + 1/3 * lpSum([profits[s][i] for s in Senario for i in Products])
