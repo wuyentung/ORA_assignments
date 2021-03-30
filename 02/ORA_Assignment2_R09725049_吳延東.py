@@ -1,8 +1,7 @@
 #%%
 from pulp import *
 import numpy as np
-import random
-import scipy
+import scipy.stats
 #%%
 
 def solve_prob(LpProb):
@@ -52,13 +51,6 @@ Price_below = { # selling price when total yeild is below demand
     Products[1]: -210, 
     Products[2]: 36, 
     }
-
-Senario = {
-    "high" : 1.2, 
-    "avg" : 1, 
-    "low" : 0.8
-    }
-
 #%%
 def prob_senario_ana(prob_name="problem_s", s=1):
     ## problem
@@ -91,7 +83,7 @@ def prob_senario_ana(prob_name="problem_s", s=1):
     return prob_senario
 #%%
 def prob_result(prob):
-    print("Status:", LpStatus[prob.status])
+    print("Status for %s:" %prob.name, LpStatus[prob.status])
 
     #印出解及目標值
     for v in prob.variables():
@@ -102,39 +94,25 @@ def prob_result(prob):
 ## 1a
 prob_a = prob_senario_ana(prob_name="1a")
 prob_result(prob=prob_a)
-#%%
-## model
-prob_a = LpProblem("problem_1a", LpMaximize)
-
-## add variables
-land_vars = LpVariable.dicts(name="Land", indexs=Products, lowBound=0, upBound=None, cat="continuous")
-profits = LpVariable.dicts(name="profit", indexs=Products, lowBound=None, upBound=None, cat="continuous")
-
-## objective function
-prob_a += lpSum(
-    [-Costs[i] * land_vars[i] for i in Products] + 
-    [profits[i] for i in Products] # splitting piecewise profit function into two
-    )
-
-## constraints
-prob_a += 500 >= lpSum(land_vars[i] for i in Products) # total land limit
-
-prob_a += profits["Wheat"] <= [-np.abs(Price_below[i]) * Demands[i] + np.abs(Price_below[i]) * land_vars[i] * Avg_yield[i] for i in ["Wheat"]] # pay price when yield below demand (piecewise)
-prob_a += profits["Wheat"] <= [-np.abs(Price_above[i]) * Demands[i] + np.abs(Price_above[i]) * land_vars[i] * Avg_yield[i] for i in ["Wheat"]] # get profit when yield above demand (piecewise)
-
-prob_a += profits["Corn"] <= [-np.abs(Price_below[i]) * Demands[i] + np.abs(Price_below[i]) * land_vars[i] * Avg_yield[i] for i in ["Corn"]] # pay price when yield below demand (piecewise)
-prob_a += profits["Corn"] <= [-np.abs(Price_above[i]) * Demands[i] + np.abs(Price_above[i]) * land_vars[i] * Avg_yield[i] for i in ["Corn"]] # get profit when yield above demand (piecewise)
-
-prob_a += profits["Sugar"] <= [Price_below[i] * land_vars[i] * Avg_yield[i] for i in ["Sugar"]] # get higher profit ratio when yield below demand (piecewise)
-prob_a += profits["Sugar"] <= [np.abs(Price_below[i] - Price_above[i]) * Demands[i] + Price_above[i] * land_vars[i] * Avg_yield[i] for i in ["Sugar"]] # get lower profit ratio when yield above demand (piecewise)
-
-## solve
-solve_prob(prob_a)
 
 # https://docs.mosek.com/modeling-cookbook/mio.html
 # http://civil.colorado.edu/~balajir/CVEN5393/lectures/chapter-08.pdf
 #%%
+## 1b
+Senario = {
+    "high" : 1.2, 
+    "avg" : 1, 
+    "low" : 0.8
+    }
 #%%
+prob_bs = {}
+for s in Senario:
+    prob_bs[s] = prob_senario_ana(prob_name="1b_%s" %s, s=Senario[s])
+    prob_result(prob=prob_bs[s])
+    print()
+
+#%%
+## 1e
 ## model
 all_stages = LpProblem("problem_1c", LpMaximize)
 ## vars
@@ -174,8 +152,6 @@ for i in range(15):
 
 
 #%%
-temp1, temp2 = prob_senario_ana(1)
-#%%
 low_vars = []
 low_obj = []
 for i in range(15):
@@ -184,7 +160,8 @@ for i in range(15):
 
 for i in range(15):
     for j in range(30):
-        low_vars[i][j], low_obj[i][j] = prob_senario_ana(M[i][j])
+        low_prob = prob_senario_ana(M[i][j])
+        low_vars[i][j], low_obj[i][j] = low_prob.variables(), value(low_prob.objective)
 #%%
 def mean_confidence_interval(data, confidence=0.95):
     a = 1.0 * np.array(data)
