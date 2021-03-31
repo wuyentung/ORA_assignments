@@ -91,6 +91,29 @@ def prob_result(prob):
     print('obj=',value(prob.objective))
     pass
 #%%
+def senario_obj(determined_land, s=1):
+    cost = np.sum([determined_land[i] * Costs[i] for i in Products])
+
+    profits = {
+        Products[0]: 0,
+        Products[1]: 0,
+        Products[2]: 0,
+    }
+
+    for i in Products:
+        y = determined_land[i] * Avg_yield[i] * s
+        if y <= Demands[i]:
+            if i != "Sugar":
+                profits[i] = Price_below[i] * (Demands[i] - y)
+            else:
+                profits[i] = Price_below[i] * y
+        else:
+            if i != "Sugar":
+                profits[i] = Price_above[i] * (y - Demands[i])
+            else:
+                profits[i] = Price_below[i] * y
+    return np.sum([profits[i] for i in Products]) - cost
+#%%
 ## 1a
 prob_a = prob_senario_ana(prob_name="1a")
 prob_result(prob=prob_a)
@@ -105,14 +128,14 @@ Senario = {
     "low" : 0.8
     }
 #%%
-prob_bs = {}
+prob_1bs = {}
 for s in Senario:
-    prob_bs[s] = prob_senario_ana(prob_name="1b_%s" %s, s=Senario[s])
-    prob_result(prob=prob_bs[s])
+    prob_1bs[s] = prob_senario_ana(prob_name="1b_%s" %s, s=Senario[s])
+    prob_result(prob=prob_1bs[s])
     print()
 
 #%%
-## 1e
+## 1d
 ## model
 all_stages = LpProblem("problem_1c", LpMaximize)
 ## vars
@@ -140,6 +163,23 @@ for s in Senario:
     all_stages += profits[s]["Sugar"] <= [np.abs(Price_below[i] - Price_above[i]) * Demands[i] + Price_above[i] * lands[i] * Avg_yield[i] * Senario[s] for i in ["Sugar"]] # get lower profit ratio when yield above demand (piecewise)
 
 solve_prob(all_stages)
+#%%
+land_1d = {}
+land_1d[Products[0]] = all_stages.variables()[2].varValue
+land_1d[Products[1]] = all_stages.variables()[0].varValue
+land_1d[Products[2]] = all_stages.variables()[1].varValue
+for s in Senario:
+    print("1d for %s demand: " % s , senario_obj(determined_land=land_1d, s=Senario[s]))
+    print()
+#%%
+## 1e EVPI, VSS
+### EVPI
+## max: WS - RP
+ws = np.mean([value(prob_1bs[s].objective) for s in Senario])
+rp = value(all_stages.objective)
+evpi = ws - rp
+### VSS = EEV - RP
+
 #%%
 ## 1g
 ## set samples
@@ -179,41 +219,18 @@ land_mu["Wheat"] = np.mean([low_vars[i][j][2].varValue for i in range(15) for j 
 land_mu["Corn"] = np.mean([low_vars[i][j][0].varValue for i in range(15) for j in range(30)])
 land_mu["Sugar"] = np.mean([low_vars[i][j][1].varValue for i in range(15) for j in range(30)])
 #%%
-def senario_upper_bound(s=1):
-    cost = np.sum([land_mu[i] * Costs[i] for i in Products])
-
-    profits = {
-        Products[0]: 0,
-        Products[1]: 0,
-        Products[2]: 0,
-    }
-
-    for i in Products:
-        y = land_mu[i] * Avg_yield[i] * s
-        if y <= Demands[i]:
-            if i != "Sugar":
-                profits[i] = Price_below[i] * (Demands[i] - y)
-            else:
-                profits[i] = Price_below[i] * y
-        else:
-            if i != "Sugar":
-                profits[i] = Price_above[i] * (y - Demands[i])
-            else:
-                profits[i] = Price_below[i] * y
-    return np.sum([profits[i] for i in Products]) - cost
-#%%
 up_obj = []
 for i in range(15):
     up_obj.append([None] * 30)
 
 for i in range(15):
     for j in range(30):
-        up_obj[i][j] = senario_upper_bound(T[i][j])
+        up_obj[i][j] = senario_obj(determined_land=land_mu, s=T[i][j])
 #%%
 upper_bound = {}
 upper_bound["mean"], upper_bound["low"], upper_bound["high"] = mean_confidence_interval(data=[up_obj[i][j] for i in range(15) for j in range(30)])
 
 #%%
-print(lower_bound)
-print(upper_bound)
+print("lower_bound: ", lower_bound)
+print("upper_bound: ", upper_bound)
 #%%
