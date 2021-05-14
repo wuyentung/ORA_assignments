@@ -1,6 +1,6 @@
 #%%
 from pandas.core.indexes import datetimes
-from pulp import *
+# from pulp import *
 import numpy as np
 import scipy.stats
 import matplotlib.pyplot as plt
@@ -88,24 +88,33 @@ def judge_RS(u0):
 # print(VAR)
 #%%
 col = [v.varName for v in vrs_model.getVars()] + ["TE", "SE"]
-d = pd.DataFrame(data=VAR).T
-d.columns = col
-d["OE"] = np.round(d["SE"] / d["TE"], 3)
-d["return to scale"] = [judge_RS(u0=u0) for u0 in d["u_0E"]]
-d
+result = pd.DataFrame(data=VAR).T
+result.columns = col
+result["OE"] = np.round(result["SE"] / result["TE"], 3)
+result["return to scale"] = [judge_RS(u0=u0) for u0 in result["u_0E"]]
+result
 #%%
 #%%
 data = pd.read_excel("ORA_Assignment_04_DEA.xlsx", header=0)
 #%%
-schools = [item for item in data["School"] if isinstance(item, str)]
+SCHOOLS = [item for item in data["School"] if isinstance(item, str)]
 #%%
-School_data = {}
+SCHOOL_DATA = {}
 for index, row in data.iterrows():
-    # print(row[1:-1])
     if isinstance(row["School"], str):
         school = row["School"]
-        School_data[school] = pd.DataFrame(data=None, columns=data.columns[1:-1])
+        SCHOOL_DATA[school] = pd.DataFrame(data=None, columns=data.columns[1:])
     else:
-        School_data[school] = School_data[school].append(pd.DataFrame(pd.DataFrame(data=row[1:-1]).T, columns=data.columns[1:-1]))
+        SCHOOL_DATA[school] = SCHOOL_DATA[school].append(pd.DataFrame(pd.DataFrame(data=row[1:]).T, columns=data.columns[1:]))
 #%%
+I = 3
+O = 3
+INPUTS = [i for i in  data.columns[2:2+I]]
+OUTPUTS = [o for o in  data.columns[2+I:2+I+O]]
+#%%
+for index, row in SCHOOL_DATA[SCHOOLS[0]].iterrows():
+    print([row[i] for i in INPUTS])
+    print()
+#%%
+toy
 #%%
