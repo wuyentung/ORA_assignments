@@ -129,3 +129,6 @@ result.columns = col
 result["OE"] = np.round(result["SE"] / result["TE"], 3)
 result["return to scale"] = [judge_RS(u0=u0) for u0 in result["u_0"]]
 result
+#%%
+result.to_csv("DEA_result.csv")
+#%%
