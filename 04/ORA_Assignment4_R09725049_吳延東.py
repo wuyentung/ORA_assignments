@@ -110,7 +110,7 @@ for r in DMU:
     ## solve
     crs_model.optimize()
     
-    record[r] = np.round([v.x for v in vrs_model.getVars()] + [vrs_model.objVal] + [crs_model.objVal], 3)
+    record[r] = np.round([v.x for v in vrs_model.getVars()] + [vrs_model.objVal] + [crs_model.objVal], 6)
 
 
 #%%
@@ -130,5 +130,5 @@ result["OE"] = np.round(result["SE"] / result["TE"], 3)
 result["return to scale"] = [judge_RS(u0=u0) for u0 in result["u_0"]]
 result
 #%%
-result.to_csv("DEA_result.csv")
+result.to_csv("DEA_result.csv", float_format='%.6f')
 #%%
