@@ -28,8 +28,6 @@ OUTPUTS = [o for o in  data.columns[2+I:2+I+O]]
 for index, row in SCHOOL_DATA[SCHOOLS[0]].iterrows():
     print([row[i] for i in INPUTS])
     print()
-#%%
-DMU = [dep for s in SCHOOLS for dep in SCHOOL_DATA[s]["Department"]]
 
 #%%
 DMU = []
@@ -43,20 +41,6 @@ for s in SCHOOLS:
 
 #%%
 record = {}  
-# I=2
-# O=3
-# INPUTS = ["zz", "xx"]
-# OUTPUTS = ["cc", "vv", "bb"]
-# # X、Y為各DMU的投入與產出    
-# DMU = ["A", "B", "C", "D", "E"]
-# X = {'A': [11, 14], 'B': [7, 7], 'C': [11, 14], 'D': [14, 14], 'E': [14, 15]}
-# Y = {
-#     'A': [2, 2, 1],
-#     'B': [1, 1, 1],
-#     'C': [1, 1, 2],
-#     'D': [2, 3, 1],
-#     'E': [3, 2, 3]
-#     }
 
 ## cal technical efficiency (VRS) and scale efficiency (CRS) for each DMU
 for r in DMU:            
@@ -120,15 +104,43 @@ def judge_RS(u0):
     elif u0 < 0:
         return "IRS"
     return "CRS"
+
 #%%
-# print(VAR)
-#%%
-col = [v.varName for v in vrs_model.getVars()] + ["TE", "SE"]
+col = [v.varName for v in vrs_model.getVars()] + ["TE", "OE"]
 result = pd.DataFrame(data=record).T
 result.columns = col
-result["OE"] = np.round(result["SE"] / result["TE"], 3)
+result["SE"] = np.round(result["OE"] / result["TE"], 3)
 result["return to scale"] = [judge_RS(u0=u0) for u0 in result["u_0"]]
 result
 #%%
 result.to_csv("DEA_result.csv", float_format='%.6f')
+#%%
+result_read = pd.read_csv("DEA_result.csv")
+#%%
+
+## 3D plotting
+from matplotlib import pyplot
+from mpl_toolkits.mplot3d import Axes3D
+from numpy.random import rand
+from pylab import figure
+#%%
+plot_data = pd.DataFrame(data=result_read["u_0"])
+plot_data["TE"] = list(result_read["TE"])
+plot_data["OE"] = list(result_read["OE"])
+
+m = np.array(plot_data)# m is an array of (x,y,z) coordinate triplets
+
+fig = figure(figsize=(8, 20))
+ax = Axes3D(fig)
+
+dot_name = list(plot_data.index)
+
+for i in range(len(m)): #plot each point + it's index as text above
+ ax.scatter(m[i,0],m[i,1],m[i,2], color='b') 
+ ax.text(m[i,0],m[i,1],m[i,2], '%s' % (dot_name[i]), size=5, zorder=1, color='k') 
+
+ax.set_zlabel('OE')
+ax.set_ylabel('TE')
+ax.set_xlabel('u_0')
+pyplot.show()
 #%%
